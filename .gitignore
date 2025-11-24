@@ -3,3 +3,6 @@
 /data
 /training.py
 /__pycache__
+/cuda
+/venv
+/.env
