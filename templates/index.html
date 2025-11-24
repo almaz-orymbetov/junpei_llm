@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>junpei-llm</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0b0b0d;
+    --muted: #a6a6a6;
+    --accent: #00d9ff;
+    --glass: rgba(255,255,255,0.05);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'JetBrains Mono',monospace;background:var(--bg);color:#eaeaea;overflow:hidden;}
+.site-bg{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a0a,#0d1a1a,#0a0f15,#000f0f);z-index:0;}
+.chat-container{position:fixed;inset:0;display:flex;flex-direction:column;padding:15px;gap:10px;z-index:1;}
+#chatbox{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:5px;scroll-behavior:smooth;}
+.message{max-width:85%;padding:12px 16px;border-radius:20px;line-height:1.4;word-wrap:break-word;opacity:0;transform:translateY(10px);animation:fadeInMessage 0.5s forwards;}
+@keyframes fadeInMessage{to{opacity:1;transform:translateY(0);}}
+.user{background:rgba(0,217,255,0.25);align-self:flex-end;border-bottom-right-radius:0;color:var(--accent);}
+.bot{background:rgba(255,255,255,0.1);align-self:flex-start;border-bottom-left-radius:0;color:#fff;}
+.input-area{display:flex;gap:6px;padding:8px;border-top:1px solid rgba(0,217,255,0.15);}
+#prompt{flex:1;padding:10px 14px;border-radius:25px;border:none;outline:none;background:var(--glass);color:#fff;backdrop-filter: blur(8px);}
+#prompt::placeholder{color:rgba(255,255,255,0.5);}
+#send-btn,#stop-btn{padding:10px 20px;border-radius:25px;border:none;font-weight:bold;background:linear-gradient(135deg,rgba(0,217,255,0.4),rgba(0,180,220,0.3));color:#000;cursor:pointer;backdrop-filter: blur(6px);box-shadow:0 0 10px rgba(0,217,255,0.4);transition:all 0.3s ease;}
+#send-btn:hover,#stop-btn:hover{transform:scale(1.1);}
+footer{position:absolute;bottom:0;width:100%;text-align:center;font-size:12px;padding:6px 0;color:var(--muted);backdrop-filter:blur(6px);background:rgba(0,0,0,0.15);}
+footer a{color:var(--accent);text-decoration:none;}
+footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="site-bg"></div>
+<div class="chat-container">
+    <div id="chatbox"></div>
+    <div class="input-area">
+        <input type="text" id="prompt" placeholder="Type your message..." onkeydown="if(event.key==='Enter'){sendMessage();}">
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+        <button id="stop-btn" onclick="stopTyping()">Stop</button>
+    </div>
+</div>
+<footer>junpei-llm & OpenAI sources &copy; 2025</footer>
+
+<script>
+let session_id = localStorage.getItem('session_id');
+if(!session_id){session_id='session-'+Date.now()+'-'+Math.floor(Math.random()*1000);localStorage.setItem('session_id',session_id);}
+let typingInterval=null;
+
+async function sendMessage(){
+    const promptInput=document.getElementById('prompt');
+    const prompt=promptInput.value.trim();
+    if(!prompt) return;
+    const chatbox=document.getElementById('chatbox');
+
+    const userDiv=document.createElement('div');
+    userDiv.className='message user';
+    userDiv.textContent=prompt;
+    chatbox.appendChild(userDiv);
+
+    promptInput.value='';
+    chatbox.scrollTop=chatbox.scrollHeight;
+
+    const botDiv=document.createElement('div');
+    botDiv.className='message bot';
+    chatbox.appendChild(botDiv);
+    chatbox.scrollTop=chatbox.scrollHeight;
+
+    try{
+        const response=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,session_id})});
+        const data=await response.json();
+        const botText=data.response;
+        botDiv.textContent='';
+        let i=0;
+        typingInterval=setInterval(()=>{
+            if(i<botText.length){
+                botDiv.textContent+=botText.charAt(i);
+                i++;
+                chatbox.scrollTop=chatbox.scrollHeight;
+            } else clearInterval(typingInterval);
+        },20);
+    }catch(err){
+        botDiv.textContent="Error: Unable to reach server.";
+        console.error(err);
+    }
+}
+
+function stopTyping(){ clearInterval(typingInterval); }
+</script>
+</body>
+</html>
